@@ -1,23 +1,3 @@
-import sys
-from pathlib import Path
-
-# Add Aula18 to sys.path to allow imports from app
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-import pytest
-from app import create_app
-from app.services import user_service
-
-
-@pytest.fixture
-def client():
-    app = create_app()
-    user_service.users.clear()
-    user_service.current_id = 1
-
-    return app.test_client()
-
-
 def test_user_flow(client):
     # Create user
     response = client.post("/users", json={"name": "Maylon"})
@@ -58,3 +38,28 @@ def test_list_users_with_three_users(client):
     data = response.get_json()
     assert response.status_code == 200
     assert len(data) == 3
+
+
+def test_create_user_rejects_blank_name(client):
+    response = client.post("/users", json={"name": "   "})
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "name is required"
+
+
+def test_update_user_not_found(client):
+    response = client.put("/users/999", json={"name": "Novo Nome"})
+
+    assert response.status_code == 404
+
+
+def test_filter_users_by_name_partial_match(client):
+    client.post("/users", json={"name": "Maria"})
+    client.post("/users", json={"name": "Joana"})
+    client.post("/users", json={"name": "Carlos"})
+
+    response = client.get("/users?name=ana")
+    data = response.get_json()
+
+    assert response.status_code == 200
+    assert [user["name"] for user in data] == ["Joana"]

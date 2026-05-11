@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Users</title>
+<meta charset="utf-8">
+<title>User List</title>
 </head>
 <body>
 <h1>Cadastro de Usuários</h1>
 <input type="text" id="name" placeholder="Digite o nome">
 <button id="submit">Cadastrar</button>
+<p id="message" role="alert"></p>
 <ul id="users"></ul>
 <script>
 async function loadUsers() {
@@ -22,14 +24,32 @@ list.appendChild(li);
 }
 document.getElementById("submit").addEventListener("click",
 async () => {
-const name = document.getElementById("name").value;
-await fetch("/users", {
+const input = document.getElementById("name");
+const message = document.getElementById("message");
+const name = input.value.trim();
+if (!name) {
+message.innerText = "name is required";
+return;
+}
+const response = await fetch("/users", {
 method: "POST",
 headers: {
 "Content-Type": "application/json"
 },
 body: JSON.stringify({ name })
 });
+if (!response.ok) {
+let payload = {};
+try {
+payload = await response.json();
+} catch (error) {
+payload = {};
+}
+message.innerText = payload.error || "request failed";
+return;
+}
+message.innerText = "";
+input.value = "";
 loadUsers();
 });
 loadUsers();

@@ -19,16 +19,24 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies (Aula15)
-        run: python -m pip install --upgrade pip && pip install -r Aula15/requirements.txt
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium || sudo apt-get install -y chromium-browser
 
-      - name: Run tests (Aula15)
-        run: pytest
-        working-directory: Aula15
+      - name: Install dependencies (Aula20)
+        run: python -m pip install --upgrade pip && pip install -r Aula20/requirements.txt
 
-      - name: Install dependencies (Aula16)
-        run: python -m pip install --upgrade pip && pip install -r Aula16/requirements.txt
+      - name: Run black
+        run: black --check .
+        working-directory: Aula20
 
-      - name: Run tests (Aula16)
-        run: pytest
-        working-directory: Aula16
+      - name: Run flake8
+        run: flake8 .
+        working-directory: Aula20
+
+      - name: Run pytest
+        run: |
+          export CHROME_BIN="$(command -v chromium || command -v chromium-browser || true)"
+          pytest
+        working-directory: Aula20

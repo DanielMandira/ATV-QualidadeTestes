@@ -8,12 +8,13 @@ import pytest
 from app import create_app
 from app.services import user_service
 
+
 @pytest.fixture
 def client():
     app = create_app()
     user_service.users.clear()
     user_service.current_id = 1
-    
+
     return app.test_client()
 
 
@@ -23,24 +24,25 @@ def test_user_flow(client):
     assert response.status_code == 201
     user = response.get_json()
     user_id = user["id"]
-    
+
     response = client.get(f"/users/{user_id}")
     assert response.status_code == 200
-    
+
     response = client.put(f"/users/{user_id}", json={"name": "Novo Nome"})
     assert response.status_code == 200
     assert response.get_json()["name"] == "Novo Nome"
-    
+
     response = client.delete(f"/users/{user_id}")
     assert response.status_code == 204
-    
+
     response = client.get(f"/users/{user_id}")
     assert response.status_code == 404
-    
+
+
 def test_list_users(client):
     client.post("/users", json={"name": "User 1"})
     client.post("/users", json={"name": "User 2"})
-    
+
     response = client.get("/users")
     data = response.get_json()
     assert response.status_code == 200

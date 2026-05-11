@@ -1,35 +1,102 @@
-def test_should_not_allow_duplicate_users():
-    from app.services import user_service
-
-    user_service.users.clear()
-    user_service.current_id = 1
-
-    user_service.create_user({"name": "Maylon"})
+from app.services import user_service
 
 
-    users =user_service.create_user({"name": "Maylon"})
-    assert user is None
-    
-def create_user(data):
-    global current_id
-    
-    existing_user = next((u for u in users if u["name"] == data["name"]), None)
-    
-    if existing_user:
-        return None
-    
-    user = {"id": current_id, "name": data["name"]}
-    
-    users.append(user)
-    current_id += 1
-    
-    return user
+def test_create_user_assigns_incrementing_id():
+    user1 = user_service.create_user({"name": "Ana"})
+    user2 = user_service.create_user({"name": "Bruno"})
 
-def test_should_return_400_when_user_already_exists(client):
-    client.post("/users", json={"name": "Maylon"})
-    
-    response = client.post("/users", json={"name": "Maylon"})
-    
-    assert response.status_code == 400
-    
-    
+    assert user1["id"] == 1
+    assert user2["id"] == 2
+
+
+def test_create_user_stores_user():
+    user_service.create_user({"name": "Ana"})
+
+    assert len(user_service.get_all_users()) == 1
+
+
+def test_create_user_rejects_duplicate_name_case_insensitive():
+    user_service.create_user({"name": "Ana"})
+
+    duplicate = user_service.create_user({"name": "ana"})
+
+    assert duplicate is None
+
+
+def test_create_user_rejects_blank_name():
+    created = user_service.create_user({"name": "   "})
+
+    assert created is None
+    assert len(user_service.get_all_users()) == 0
+
+
+def test_get_user_by_id_returns_user():
+    created = user_service.create_user({"name": "Carlos"})
+
+    found = user_service.get_user_by_id(created["id"])
+
+    assert found == created
+
+
+def test_get_user_by_id_returns_none_when_missing():
+    assert user_service.get_user_by_id(999) is None
+
+
+def test_update_user_updates_name():
+    created = user_service.create_user({"name": "Daniel"})
+
+    updated = user_service.update_user(created["id"], {"name": "Dani"})
+
+    assert updated["name"] == "Dani"
+
+
+def test_update_user_returns_none_when_missing():
+    assert user_service.update_user(999, {"name": "Nope"}) is None
+
+
+def test_delete_user_removes_user():
+    created = user_service.create_user({"name": "Eva"})
+
+    user_service.delete_user(created["id"])
+
+    assert user_service.get_user_by_id(created["id"]) is None
+
+
+def test_delete_user_keeps_other_users():
+    user1 = user_service.create_user({"name": "Fabio"})
+    user2 = user_service.create_user({"name": "Gabi"})
+
+    user_service.delete_user(user1["id"])
+
+    assert user_service.get_user_by_id(user2["id"]) == user2
+    assert len(user_service.get_all_users()) == 1
+
+
+def test_filter_users_by_name_returns_matching_subset():
+    user_service.create_user({"name": "Alice"})
+    user_service.create_user({"name": "Bob"})
+    user_service.create_user({"name": "Alicia"})
+
+    filtered = user_service.filter_users_by_name("ali")
+    filtered_names = [user["name"] for user in filtered]
+
+    assert filtered_names == ["Alice", "Alicia"]
+
+
+def test_filter_users_by_name_returns_all_when_query_blank():
+    user_service.create_user({"name": "Alice"})
+    user_service.create_user({"name": "Bob"})
+
+    filtered = user_service.filter_users_by_name("  ")
+
+    assert len(filtered) == 2
+
+
+def test_normalize_name_strips_whitespace():
+    assert user_service.normalize_name("  Ana  ") == "Ana"
+
+
+def test_is_duplicate_name_ignores_same_user_id():
+    created = user_service.create_user({"name": "Ana"})
+
+    assert user_service.is_duplicate_name("Ana", ignore_id=created["id"]) is False

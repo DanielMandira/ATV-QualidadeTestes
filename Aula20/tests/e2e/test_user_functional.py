@@ -1,69 +1,60 @@
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import time
 
-def test_create_user_e2e():
-    driver = webdriver.Chrome()
-    driver.get("http://localhost:5000")
-    
+
+def _add_user(driver, name):
     input_name = driver.find_element(By.ID, "name")
-    input_name.send_keys("Maylon")
-    
-    button = driver.find_element(By.ID, "submit")
-    button.click()
-    
-    time.sleep(1)
-    
-    users = driver.find_elements(By.TAG_NAME, "li")
-    
-    assert any("Maylon" in user.text for user in users)
-    
-    driver.quit()
+    input_name.clear()
+    input_name.send_keys(name)
+    driver.find_element(By.ID, "submit").click()
 
-def test_create_two_users_and_verify_list_e2e():
-    # Usuário acessa a aplicação
-    driver = webdriver.Chrome()
-    driver.get("http://localhost:5000")
-    wait = WebDriverWait(driver, 10)
 
-    # Verifica se o título da página está correto
-    assert "User List" in driver.title
+def _get_user_texts(driver):
+    return [user.text for user in driver.find_elements(By.CSS_SELECTOR, "#users li")]
 
-    # Encontra o campo de nome
-    input_name1 = driver.find_element(By.ID, "name")
-    # Digita o primeiro usuário
-    input_name1.send_keys("Usuario Um")
-    # Clica no botão cadastrar
-    button1 = driver.find_element(By.ID, "submit")
-    button1.click()
 
-    # Espera o usuário aparecer na tela
-    wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(text(), 'Usuario Um')]")))
+def test_create_user_e2e(driver, live_server):
+    driver.get(live_server)
 
-    # Valida se o usuário foi exibido
-    users_list_after_first_add = driver.find_element(By.ID, "user-list")
-    assert "Usuario Um" in users_list_after_first_add.text
+    _add_user(driver, "Maylon")
 
-    # Adiciona um segundo usuário
-    input_name2 = driver.find_element(By.ID, "name")
-    input_name2.send_keys("Usuario Dois")
-    button2 = driver.find_element(By.ID, "submit")
-    button2.click()
+    wait = WebDriverWait(driver, 5)
+    wait.until(EC.text_to_be_present_in_element((By.ID, "users"), "Maylon"))
 
-    # Espera o segundo usuário aparecer
-    wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(text(), 'Usuario Dois')]")))
+    assert "Maylon" in _get_user_texts(driver)
 
-    # Busca novamente todos os usuários exibidos
-    users_list_after_second_add = driver.find_element(By.ID, "user-list")
-    users = users_list_after_second_add.find_elements(By.TAG_NAME, "li")
-    user_texts = [user.text for user in users]
 
-    # Valida os dois usuários na lista
+def test_create_two_users_and_verify_list_e2e(driver, live_server):
+    driver.get(live_server)
+
+    _add_user(driver, "Usuario Um")
+    _add_user(driver, "Usuario Dois")
+
+    wait = WebDriverWait(driver, 5)
+    wait.until(lambda d: len(_get_user_texts(d)) == 2)
+
+    user_texts = _get_user_texts(driver)
     assert "Usuario Um" in user_texts
     assert "Usuario Dois" in user_texts
 
-    # Fecha navegador
-    driver.quit()
-    
+
+def test_duplicate_user_not_added_e2e(driver, live_server):
+    driver.get(live_server)
+
+    _add_user(driver, "Ana")
+    _add_user(driver, "Ana")
+
+    wait = WebDriverWait(driver, 5)
+    wait.until(lambda d: len(_get_user_texts(d)) == 1)
+
+    assert _get_user_texts(driver) == ["Ana"]
+
+
+def test_blank_name_not_added_e2e(driver, live_server):
+    driver.get(live_server)
+
+    driver.find_element(By.ID, "submit").click()
+
+    wait = WebDriverWait(driver, 2)
+    wait.until(lambda d: len(_get_user_texts(d)) == 0)
